@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <!-- Загаданное число -->
+    <TextView
+        android:id="@+id/targetNumberText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Число: ???"
+        android:textSize="24sp"
+        android:layout_gravity="center" />
+
+    <!-- Слайдер -->
+    <SeekBar
+        android:id="@+id/slider"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:max="49" />
+
+    <!-- Кнопка подтверждения -->
+    <Button
+        android:id="@+id/confirmButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Подтвердить"
+        android:layout_gravity="center" />
+
+    <!-- Текущий счёт -->
+    <TextView
+        android:id="@+id/scoreText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Счёт: 0"
+        android:textSize="18sp"
+        android:layout_gravity="center" />
+
+    <!-- Номер текущего раунда -->
+    <TextView
+        android:id="@+id/roundText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Раунд: 1/5"
+        android:textSize="18sp"
+        android:layout_gravity="center" />
+</LinearLayout>
