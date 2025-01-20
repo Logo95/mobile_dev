@@ -17,6 +17,7 @@ import androidx.navigation.compose.*
 import com.example.bankapp.controller.CashbackController
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 
 
 @ExperimentalMaterial3Api
@@ -32,7 +33,9 @@ class MainActivity : ComponentActivity() {
 @ExperimentalMaterial3Api
 @Composable
 fun BankApp() {
-    val navController = rememberNavController()  // Убедись, что создается NavHostController
+    val navController = rememberNavController()
+    val balance = remember { mutableStateOf(10000.0) } // Глобальный баланс
+    val transactions = remember { mutableStateOf(mutableListOf<String>()) } // Глобальный список транзакций
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -42,23 +45,38 @@ fun BankApp() {
             )
         }
     ) { innerPadding ->
-        NavigationHost(navController = navController, modifier = Modifier.padding(innerPadding))
+        NavigationHost(
+            navController = navController,
+            modifier = Modifier.padding(innerPadding),
+            balance = balance,
+            transactions = transactions // Передаём список транзакций
+        )
     }
 }
 
+
+
 @Composable
-fun NavigationHost(navController: NavHostController, modifier: Modifier = Modifier) {
+fun NavigationHost(
+    navController: NavHostController,
+    modifier: Modifier = Modifier,
+    balance: MutableState<Double>,
+    transactions: MutableState<MutableList<String>> // Передаём список транзакций
+) {
     NavHost(
-        navController = navController,  // Используем NavHostController
+        navController = navController,
         startDestination = "home",
         modifier = modifier
     ) {
         composable("home") { HomeScreen(navController) }
-        composable("balance") { BalanceScreen(navController) }
-        composable("transactions") { TransactionsScreen(navController) }
+        composable("balance") { BalanceScreen(navController, balance) }
+        composable("transactions") { TransactionsScreen(navController, transactions) } // Передаём транзакции
         composable("settings") { SettingsScreen(navController) }
+        composable("transfer") { TransferScreen(navController, balance, transactions) } // Передаём транзакции
     }
 }
+
+
 
 @Composable
 fun HomeScreen(navController: NavHostController) {
@@ -86,17 +104,21 @@ fun HomeScreen(navController: NavHostController) {
         Button(onClick = { navController.navigate("settings") }) {
             Text("Настройки")
         }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Button(onClick = { navController.navigate("transfer") }) { // Кнопка для перехода на экран перевода
+            Text("Перевод")
+        }
     }
 }
 
+
 @SuppressLint("RememberReturnType")
 @Composable
-fun BalanceScreen(navController: NavHostController) {
+fun BalanceScreen(navController: NavHostController, balance: MutableState<Double>) {
     val cashbackController = CashbackController()
-    val balance = remember { mutableStateOf("10000 ₽") }
     val cashback = remember { mutableStateOf("") }
-
-    // Убираем LaunchedEffect, чтобы кэшбэк не показывался автоматически
 
     Column(
         modifier = Modifier
@@ -105,11 +127,10 @@ fun BalanceScreen(navController: NavHostController) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text(text = "Ваш баланс: ${balance.value}", fontSize = 20.sp, modifier = Modifier.padding(16.dp))
+        Text(text = "Ваш баланс: ${balance.value} ₽", fontSize = 20.sp, modifier = Modifier.padding(16.dp))
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Кнопка для кешбэка за текущий месяц
         Button(onClick = {
             cashbackController.getCashback("current") {
                 cashback.value = it
@@ -120,7 +141,6 @@ fun BalanceScreen(navController: NavHostController) {
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Кнопка для кешбэка за прошлый месяц
         Button(onClick = {
             cashbackController.getCashback("previous") {
                 cashback.value = it
@@ -131,43 +151,44 @@ fun BalanceScreen(navController: NavHostController) {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Показываем кэшбэк только после того, как он будет получен
         if (cashback.value.isNotEmpty()) {
             Text(text = "Кешбэк: ${cashback.value} ₽", fontSize = 18.sp)
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Кнопка для возврата на предыдущий экран
         Button(onClick = { navController.popBackStack() }) {
             Text(text = "Назад")
         }
     }
 }
 
+
 @Composable
-fun TransactionsScreen(navController: NavHostController) {
+fun TransactionsScreen(navController: NavHostController, transactions: MutableState<MutableList<String>>) {
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        horizontalAlignment = Alignment.Start,
+        verticalArrangement = Arrangement.Top
     ) {
         Text("Список транзакций", fontSize = 24.sp, modifier = Modifier.padding(16.dp))
 
-        // Здесь можно добавить динамические транзакции
-        Text("Транзакция 1: -200 ₽", fontSize = 18.sp)
-        Text("Транзакция 2: +1500 ₽", fontSize = 18.sp)
-        Text("Транзакция 3: -500 ₽", fontSize = 18.sp)
+        // Отображение списка транзакций
+        transactions.value.forEach { transaction ->
+            Text(transaction, fontSize = 18.sp, modifier = Modifier.padding(vertical = 4.dp))
+        }
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        // Кнопка "Назад"
         Button(onClick = { navController.popBackStack() }) {
-            Text(text = "Назад")
+            Text("Назад")
         }
     }
 }
+
 
 @Composable
 fun SettingsScreen(navController: NavHostController) {
@@ -191,3 +212,81 @@ fun SettingsScreen(navController: NavHostController) {
         }
     }
 }
+
+@Composable
+fun TransferScreen(navController: NavHostController, balance: MutableState<Double>, transactions: MutableState<MutableList<String>>) {
+    val transferAmount = remember { mutableStateOf("") }
+    val phoneNumber = remember { mutableStateOf("") }
+    val errorMessage = remember { mutableStateOf("") }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text("Перевод средств", fontSize = 24.sp, modifier = Modifier.padding(16.dp))
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Поле ввода суммы
+        OutlinedTextField(
+            value = transferAmount.value,
+            onValueChange = { transferAmount.value = it },
+            label = { Text("Сумма перевода") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Поле ввода телефона
+        OutlinedTextField(
+            value = phoneNumber.value,
+            onValueChange = { phoneNumber.value = it },
+            label = { Text("Номер телефона") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Кнопка "Отправить перевод"
+        Button(onClick = {
+            val amount = transferAmount.value.toDoubleOrNull()
+            if (amount == null || amount <= 0) {
+                errorMessage.value = "Введите корректную сумму"
+                return@Button
+            }
+
+            if (balance.value >= amount) {
+                balance.value -= amount
+                transactions.value.add("-${amount} ₽") // Добавляем запись о переводе
+                errorMessage.value = "Перевод успешен! Текущий баланс: ${balance.value} ₽"
+            } else {
+                errorMessage.value = "Недостаточно средств для перевода"
+            }
+        }) {
+            Text("Отправить")
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Сообщение об ошибке или успехе
+        if (errorMessage.value.isNotEmpty()) {
+            Text(
+                text = errorMessage.value,
+                fontSize = 16.sp,
+                color = if (errorMessage.value.contains("успешен")) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Кнопка "Назад"
+        Button(onClick = { navController.popBackStack() }) {
+            Text("Назад")
+        }
+    }
+}
+
+
