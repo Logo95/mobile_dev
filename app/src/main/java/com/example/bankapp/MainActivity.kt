@@ -155,10 +155,11 @@ fun HomeScreen(navController: NavHostController, balance: MutableState<Double>) 
     ) {
         // Карточка с балансом
         Card(
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(24.dp),  // Сделаем углы более мягкими
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 16.dp)
+                .shadow(8.dp, RoundedCornerShape(24.dp))  // Добавляем более мягкую тень
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(Color(0xFF6A5ACD), Color(0xFF483D8B))
@@ -171,13 +172,15 @@ fun HomeScreen(navController: NavHostController, balance: MutableState<Double>) 
                 Text(
                     text = "Ваш баланс",
                     style = MaterialTheme.typography.bodyLarge,
-                    color = Color.White
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
                 )
                 Text(
                     text = "${balance.value} ₽",
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = Color.White,
+                    modifier = Modifier.padding(top = 8.dp)  // Добавим отступ сверху
                 )
             }
         }
