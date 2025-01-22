@@ -228,14 +228,14 @@ fun HomeScreen(navController: NavHostController, balance: MutableState<Double>) 
         // Новые кнопки
         ButtonWithIcon(
             navController = navController,
-            route = "savings",
+            route = null,
             text = "Накопительный счёт",
             icon = Icons.Default.AttachMoney
         )
 
         ButtonWithIcon(
             navController = navController,
-            route = "loans",
+            route = null,
             text = "Погашение кредитов",
             icon = Icons.Default.MoneyOff
         )
@@ -246,7 +246,7 @@ fun HomeScreen(navController: NavHostController, balance: MutableState<Double>) 
 @Composable
 fun ButtonWithIcon(
     navController: NavHostController,
-    route: String,
+    route: String?,
     text: String,
     icon: ImageVector
 ) {
@@ -262,7 +262,13 @@ fun ButtonWithIcon(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .padding(16.dp)
-                .clickable { navController.navigate(route) }
+                .clickable {
+                    if (route != null) {
+                        navController.navigate(route)
+                    } else {
+                        // Если route == null, не делаем ничего (кнопка-пустышка)
+                    }
+                }
         ) {
             Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(32.dp))
             Spacer(modifier = Modifier.width(16.dp))
@@ -274,6 +280,7 @@ fun ButtonWithIcon(
         }
     }
 }
+
 
 @SuppressLint("RememberReturnType")
 @Composable
@@ -385,8 +392,8 @@ fun SettingsScreen(navController: NavHostController) {
             modifier = Modifier.padding(16.dp)
         )
 
-        ButtonWithIcon(navController, route = "notifications", text = "Уведомления", icon = Icons.Default.Notifications)
-        ButtonWithIcon(navController, route = "language", text = "Язык", icon = Icons.Default.Language)
+        ButtonWithIcon(navController, route = null, text = "Уведомления", icon = Icons.Default.Notifications)
+        ButtonWithIcon(navController, route = null, text = "Язык", icon = Icons.Default.Language)
     }
 }
 
