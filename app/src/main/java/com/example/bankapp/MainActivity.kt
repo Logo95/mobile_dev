@@ -139,7 +139,7 @@ fun NavigationHost(
         modifier = modifier
     ) {
         composable("home") { HomeScreen(navController, balance) }
-        composable("balance") { BalanceScreen(navController, balance, transactions) }
+        composable("balance") { BalanceScreen(navController, balance, transactions, partners) }
         composable("transactions") { TransactionsScreen(navController, transactions) }
         composable("settings") { SettingsScreen(navController) }
         composable("transfer") { TransferScreen(navController, balance, transactions, partners) }
@@ -280,9 +280,9 @@ fun ButtonWithIcon(
 fun BalanceScreen(
     navController: NavHostController,
     balance: MutableState<Double>,
-    transactions: MutableState<MutableList<Pair<String, Double>>>
+    transactions: MutableState<MutableList<Pair<String, Double>>>,
+    partners: List<Pair<String, Double>> // Список партнеров
 ) {
-    val cashbackController = CashbackController()
     val cashback = remember { mutableStateOf("") }
 
     Column(
@@ -304,8 +304,10 @@ fun BalanceScreen(
         // Кнопка для расчета кэшбэка по всем транзакциям
         Button(
             onClick = {
-                val totalCashback = calculateTotalCashback(transactions.value)
-                cashback.value = "Общий кэшбэк: ${-totalCashback} ₽"
+                val totalCashback = calculateTotalCashback(transactions.value) { partnerName ->
+                    partners.find { it.first == partnerName }?.second ?: 1.0
+                }
+                cashback.value = "Общий кэшбэк: $totalCashback ₽"
             },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6200EE))
         ) {
@@ -326,12 +328,15 @@ fun BalanceScreen(
     }
 }
 
-fun calculateTotalCashback(transactions: List<Pair<String, Double>>): Double {
-    // Подсчитываем общий кэшбэк по всем транзакциям
-    return transactions.sumOf {
-        it.second // Суммируем процент кэшбэка по всем транзакциям
+
+fun calculateTotalCashback(transactions: List<Pair<String, Double>>, getPartnerPercentage: (String) -> Double): Double {
+    return transactions.sumOf { transaction ->
+        val cashbackPercentage: Double = getPartnerPercentage(transaction.first) // Получаем процент для партнера
+        val amountSpent: Double = -transaction.second // Сумма расхода (отрицательная)
+        (amountSpent * cashbackPercentage) / 100 // Рассчитываем кэшбэк
     }
 }
+
 
 
 @Composable
@@ -471,7 +476,6 @@ fun TransferScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Кнопка "Отправить перевод"
         Button(onClick = {
             val amount = transferAmount.value.toDoubleOrNull()
             if (amount == null || amount <= 0) {
@@ -496,6 +500,7 @@ fun TransferScreen(
         }) {
             Text("Отправить")
         }
+
 
         Spacer(modifier = Modifier.height(16.dp))
 
