@@ -1,24 +1,37 @@
 package com.example.bankapp
 
+import com.example.bankapp.controller.CashbackController
 import android.annotation.SuppressLint
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.*
-import com.example.bankapp.controller.CashbackController
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.MutableState
-
+import androidx.compose.material.icons.filled.AccountBalanceWallet
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.background
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.foundation.clickable
+import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
 @ExperimentalMaterial3Api
 class MainActivity : ComponentActivity() {
@@ -35,7 +48,14 @@ class MainActivity : ComponentActivity() {
 fun BankApp() {
     val navController = rememberNavController()
     val balance = remember { mutableStateOf(10000.0) } // Глобальный баланс
-    val transactions = remember { mutableStateOf(mutableListOf<String>()) } // Глобальный список транзакций
+    val transactions = remember { mutableStateOf(mutableListOf<Pair<String, Double>>()) } // Глобальный список транзакций (название партнера + процент)
+
+    // Список партнеров с процентами кэшбэка
+    val partners = listOf(
+        Pair("BurgerKing", 3.0),
+        Pair("Eldorado", 1.5),
+        Pair("McDonalds", 2.0)
+    )
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -43,80 +63,170 @@ fun BankApp() {
             TopAppBar(
                 title = { Text("Банковское приложение") }
             )
+        },
+        bottomBar = {
+            BottomNavigationBar(navController) // Добавляем BottomNavigationBar
         }
     ) { innerPadding ->
+        // Содержимое основной страницы с учётом padding от нижней навигации
         NavigationHost(
             navController = navController,
             modifier = Modifier.padding(innerPadding),
-            balance = balance,
-            transactions = transactions // Передаём список транзакций
+            balance = balance, // Передаем balance
+            transactions = transactions, // Передаем transactions
+            partners = partners // Передаем список partners
         )
     }
 }
 
+@Composable
+fun BottomNavigationBar(navController: NavHostController) {
+    val items = listOf(
+        BottomNavItem("Главная", "home", Icons.Default.Home),
+        BottomNavItem("Счета", "balance", Icons.Default.AccountBalanceWallet),
+        BottomNavItem("Переводы", "transfer", Icons.Default.Send),
+        BottomNavItem("Настройки", "settings", Icons.Default.Settings)
+    )
 
+    NavigationBar(containerColor = Color(0xFF6200EE)) {
+        val currentRoute = currentRoute(navController)
+
+        items.forEach { item ->
+            NavigationBarItem(
+                icon = { Icon(item.icon, contentDescription = item.label) },
+                label = { Text(item.label) },
+                selected = currentRoute == item.route,
+                onClick = {
+                    if (currentRoute != item.route) {
+                        navController.navigate(item.route)
+                    }
+                },
+                colors = NavigationBarItemDefaults.colors(
+                    selectedIconColor = Color.White,
+                    unselectedIconColor = Color(0xFFBB86FC),
+                    indicatorColor = Color(0xFF3700B3)
+                )
+            )
+        }
+    }
+}
+
+@Composable
+fun currentRoute(navController: NavHostController): String? {
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    return navBackStackEntry?.destination?.route
+}
+
+data class BottomNavItem(val label: String, val route: String, val icon: androidx.compose.ui.graphics.vector.ImageVector)
 
 @Composable
 fun NavigationHost(
     navController: NavHostController,
     modifier: Modifier = Modifier,
     balance: MutableState<Double>,
-    transactions: MutableState<MutableList<String>> // Передаём список транзакций
+    transactions: MutableState<MutableList<Pair<String, Double>>>,
+    partners: List<Pair<String, Double>> // Передаем партнёров
 ) {
     NavHost(
         navController = navController,
         startDestination = "home",
         modifier = modifier
     ) {
-        composable("home") { HomeScreen(navController) }
-        composable("balance") { BalanceScreen(navController, balance) }
-        composable("transactions") { TransactionsScreen(navController, transactions) } // Передаём транзакции
+        composable("home") { HomeScreen(navController, balance) }
+        composable("balance") { BalanceScreen(navController, balance, transactions) }
+        composable("transactions") { TransactionsScreen(navController, transactions) }
         composable("settings") { SettingsScreen(navController) }
-        composable("transfer") { TransferScreen(navController, balance, transactions) } // Передаём транзакции
+        composable("transfer") { TransferScreen(navController, balance, transactions, partners) }
     }
 }
 
-
-
 @Composable
-fun HomeScreen(navController: NavHostController) {
+fun HomeScreen(navController: NavHostController, balance: MutableState<Double>) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+            .padding(16.dp)
     ) {
-        Text("Добро пожаловать в приложение", fontSize = 24.sp, modifier = Modifier.padding(16.dp))
-
-        Button(onClick = { navController.navigate("balance") }) {
-            Text("Посмотреть баланс и кешбэк")
+        // Карточка с балансом
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 16.dp)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(Color(0xFF6A5ACD), Color(0xFF483D8B))
+                    )
+                )
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp)
+            ) {
+                Text(
+                    text = "Ваш баланс",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color.White
+                )
+                Text(
+                    text = "${balance.value} ₽",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        // Кнопки с иконками
+        ButtonWithIcon(
+            navController = navController,
+            route = "transfer",
+            text = "Сделать перевод",
+            icon = Icons.Default.Send
+        )
 
-        Button(onClick = { navController.navigate("transactions") }) {
-            Text("Посмотреть транзакции")
-        }
+        ButtonWithIcon(
+            navController = navController,
+            route = "transactions",
+            text = "Посмотреть транзакции",
+            icon = Icons.Default.List
+        )
+    }
+}
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Button(onClick = { navController.navigate("settings") }) {
-            Text("Настройки")
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Button(onClick = { navController.navigate("transfer") }) { // Кнопка для перехода на экран перевода
-            Text("Перевод")
+@Composable
+fun ButtonWithIcon(
+    navController: NavHostController,
+    route: String,
+    text: String,
+    icon: ImageVector
+) {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5)),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .padding(16.dp)
+                .clickable { navController.navigate(route) }
+        ) {
+            Icon(icon, contentDescription = null, tint = Color(0xFF6200EE), modifier = Modifier.size(32.dp))
+            Spacer(modifier = Modifier.width(16.dp))
+            Text(text, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
         }
     }
 }
 
-
 @SuppressLint("RememberReturnType")
 @Composable
-fun BalanceScreen(navController: NavHostController, balance: MutableState<Double>) {
+fun BalanceScreen(
+    navController: NavHostController,
+    balance: MutableState<Double>,
+    transactions: MutableState<MutableList<Pair<String, Double>>> // Используем новый тип
+) {
     val cashbackController = CashbackController()
     val cashback = remember { mutableStateOf("") }
 
@@ -131,28 +241,19 @@ fun BalanceScreen(navController: NavHostController, balance: MutableState<Double
 
         Spacer(modifier = Modifier.height(8.dp))
 
+        // Кнопка для расчета кэшбэка по всем транзакциям
         Button(onClick = {
-            cashbackController.getCashback("current") {
-                cashback.value = it
-            }
+            // Расчет кэшбэка по всем транзакциям
+            val totalCashback = calculateTotalCashback(transactions.value)
+            cashback.value = "Общий кэшбэк: ${-totalCashback} ₽"
         }) {
-            Text(text = "Кешбэк за текущий месяц")
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Button(onClick = {
-            cashbackController.getCashback("previous") {
-                cashback.value = it
-            }
-        }) {
-            Text(text = "Кешбэк за прошлый месяц")
+            Text(text = "Рассчитать общий кэшбэк")
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
         if (cashback.value.isNotEmpty()) {
-            Text(text = "Кешбэк: ${cashback.value} ₽", fontSize = 18.sp)
+            Text(text = cashback.value, fontSize = 18.sp)
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -163,9 +264,16 @@ fun BalanceScreen(navController: NavHostController, balance: MutableState<Double
     }
 }
 
+fun calculateTotalCashback(transactions: List<Pair<String, Double>>): Double {
+    // Подсчитываем общий кэшбэк по всем транзакциям
+    return transactions.sumOf {
+        it.second // Суммируем процент кэшбэка по всем транзакциям
+    }
+}
+
 
 @Composable
-fun TransactionsScreen(navController: NavHostController, transactions: MutableState<MutableList<String>>) {
+fun TransactionsScreen(navController: NavHostController, transactions: MutableState<MutableList<Pair<String, Double>>>) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -177,7 +285,11 @@ fun TransactionsScreen(navController: NavHostController, transactions: MutableSt
 
         // Отображение списка транзакций
         transactions.value.forEach { transaction ->
-            Text(transaction, fontSize = 18.sp, modifier = Modifier.padding(vertical = 4.dp))
+            Text(
+                text = "Расход: ${transaction.second} ₽, Партнёр: ${transaction.first}", // Показываем сумму расхода с минусом и название партнера
+                fontSize = 18.sp,
+                modifier = Modifier.padding(vertical = 4.dp)
+            )
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -190,34 +302,45 @@ fun TransactionsScreen(navController: NavHostController, transactions: MutableSt
 }
 
 
+
+
 @Composable
 fun SettingsScreen(navController: NavHostController) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+            .padding(16.dp)
     ) {
-        Text("Настройки", fontSize = 24.sp, modifier = Modifier.padding(16.dp))
+        Text(
+            "Настройки",
+            style = MaterialTheme.typography.headlineLarge,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(16.dp)
+        )
 
-        // Здесь могут быть параметры настроек
-        Text("Язык", fontSize = 18.sp)
-        Text("Уведомления", fontSize = 18.sp)
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Button(onClick = { navController.popBackStack() }) {
-            Text(text = "Назад")
-        }
+        ButtonWithIcon(navController, route = "notifications", text = "Уведомления", icon = Icons.Default.Notifications)
+        ButtonWithIcon(navController, route = "language", text = "Язык", icon = Icons.Default.Language)
     }
 }
 
 @Composable
-fun TransferScreen(navController: NavHostController, balance: MutableState<Double>, transactions: MutableState<MutableList<String>>) {
+fun TransferScreen(
+    navController: NavHostController,
+    balance: MutableState<Double>,
+    transactions: MutableState<MutableList<Pair<String, Double>>>, // Список для хранения названия партнера и суммы расхода
+    partners: List<Pair<String, Double>> // Список партнёров с их процентами
+) {
     val transferAmount = remember { mutableStateOf("") }
     val phoneNumber = remember { mutableStateOf("") }
+    val partnerName = remember { mutableStateOf("") } // Для ввода имени партнера
+    val selectedPartnerPercentage = remember { mutableStateOf(1.0) } // По умолчанию 1%
     val errorMessage = remember { mutableStateOf("") }
+
+    // Функция для поиска партнера по имени
+    fun getPartnerPercentage(partnerName: String): Double {
+        val partner = partners.find { it.first.equals(partnerName, ignoreCase = true) }
+        return partner?.second ?: 1.0 // Если партнёр найден, возвращаем его процент, если нет - 1%
+    }
 
     Column(
         modifier = Modifier
@@ -248,6 +371,19 @@ fun TransferScreen(navController: NavHostController, balance: MutableState<Doubl
             modifier = Modifier.fillMaxWidth()
         )
 
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Поле для ввода имени партнёра
+        OutlinedTextField(
+            value = partnerName.value,
+            onValueChange = {
+                partnerName.value = it
+                selectedPartnerPercentage.value = getPartnerPercentage(it) // Обновляем процент при изменении имени
+            },
+            label = { Text("Партнёр") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
         Spacer(modifier = Modifier.height(16.dp))
 
         // Кнопка "Отправить перевод"
@@ -260,8 +396,15 @@ fun TransferScreen(navController: NavHostController, balance: MutableState<Doubl
 
             if (balance.value >= amount) {
                 balance.value -= amount
-                transactions.value.add("-${amount} ₽") // Добавляем запись о переводе
-                errorMessage.value = "Перевод успешен! Текущий баланс: ${balance.value} ₽"
+                val cashback = (amount * selectedPartnerPercentage.value) / 100
+                transactions.value.add(
+                    Pair(
+                        partnerName.value, // Сохраняем название партнера
+                        -amount // Вычитаем с баланса
+                    )
+                )
+
+                errorMessage.value = "Перевод успешен! Текущий баланс: ${balance.value} ₽. Кэшбэк: $cashback ₽"
             } else {
                 errorMessage.value = "Недостаточно средств для перевода"
             }
@@ -288,5 +431,4 @@ fun TransferScreen(navController: NavHostController, balance: MutableState<Doubl
         }
     }
 }
-
 
