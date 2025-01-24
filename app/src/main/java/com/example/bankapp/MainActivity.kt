@@ -144,6 +144,7 @@ fun NavigationHost(
         composable("transactions") { TransactionsScreen(navController, transactions) }
         composable("settings") { SettingsScreen(navController) }
         composable("transfer") { TransferScreen(navController, balance, transactions, partners) }
+        composable("savings") { SavingsScreen(navController) }
     }
 }
 
@@ -251,7 +252,7 @@ fun HomeScreen(navController: NavHostController, balance: MutableState<Double>) 
 
         ButtonWithIcon(
             navController = navController,
-            route = "loans",
+            route = null,
             text = "Погашение кредитов",
             icon = Icons.Default.MoneyOff
         )
@@ -542,6 +543,114 @@ fun TransferScreen(
         // Кнопка "Назад"
         Button(onClick = { navController.popBackStack() }) {
             Text("Назад")
+        }
+    }
+}
+
+@Composable
+fun SavingsScreen(navController: NavHostController) {
+    val accountNumber = "40817810099910012345" // Пример реального номера счета
+    val savingsBalance = remember { mutableStateOf(250000.0) } // Баланс накопительного счета
+    val interestRate = 5.5 // Процентная ставка
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
+        // Карточка с информацией о накопительном счете
+        Card(
+            shape = RoundedCornerShape(24.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 16.dp)
+                .shadow(8.dp, RoundedCornerShape(24.dp)),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF6200EE))
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp)
+            ) {
+                Text(
+                    text = "Накопительный счёт",
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = "Номер счёта: $accountNumber",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color.White
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = "Баланс: ${String.format("%.2f", savingsBalance.value)} ₽",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = "Процентная ставка: $interestRate%",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color.White
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Кнопка "Депозит"
+        Button(
+            onClick = { /* Реализация действия депозита */ },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3700B3))
+        ) {
+            Text(
+                text = "Депозит",
+                style = MaterialTheme.typography.bodyLarge,
+                color = Color.White
+            )
+        }
+
+        // Кнопка "Снять"
+        Button(
+            onClick = { /* Реализация действия снятия */ },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3700B3))
+        ) {
+            Text(
+                text = "Снять",
+                style = MaterialTheme.typography.bodyLarge,
+                color = Color.White
+            )
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Кнопка "Назад"
+        Button(
+            onClick = { navController.popBackStack() },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Color.Gray)
+        ) {
+            Text(
+                text = "Назад",
+                style = MaterialTheme.typography.bodyLarge,
+                color = Color.White
+            )
         }
     }
 }
