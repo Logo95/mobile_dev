@@ -16,6 +16,7 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField("String", "EXCHANGE_RATE_API_KEY", "\"${System.getenv("EXCHANGE_RATE_API_KEY") ?: ""}\"")
     }
 
     buildTypes {
@@ -37,6 +38,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true // Включаем генерацию BuildConfig
     }
 }
 

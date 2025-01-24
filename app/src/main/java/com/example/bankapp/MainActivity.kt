@@ -1,6 +1,7 @@
 package com.example.bankapp
 
 import com.example.bankapp.controller.CashbackController
+import com.example.bankapp.network.ExchangeRateApi
 import android.annotation.SuppressLint
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -148,6 +149,18 @@ fun NavigationHost(
 
 @Composable
 fun HomeScreen(navController: NavHostController, balance: MutableState<Double>) {
+    val exchangeRates = remember { mutableStateOf<Map<String, Double>>(emptyMap()) }
+
+    // Загрузка курсов валют
+    LaunchedEffect(Unit) {
+        try {
+            val rates = ExchangeRateApi.getExchangeRates() // Вызов метода, а не объекта
+            exchangeRates.value = rates
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -155,11 +168,11 @@ fun HomeScreen(navController: NavHostController, balance: MutableState<Double>) 
     ) {
         // Карточка с балансом
         Card(
-            shape = RoundedCornerShape(24.dp),  // Сделаем углы более мягкими
+            shape = RoundedCornerShape(24.dp),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 16.dp)
-                .shadow(8.dp, RoundedCornerShape(24.dp))  // Добавляем более мягкую тень
+                .shadow(8.dp, RoundedCornerShape(24.dp))
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(Color(0xFF6A5ACD), Color(0xFF483D8B))
@@ -180,7 +193,7 @@ fun HomeScreen(navController: NavHostController, balance: MutableState<Double>) 
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
                     color = Color.White,
-                    modifier = Modifier.padding(top = 8.dp)  // Добавим отступ сверху
+                    modifier = Modifier.padding(top = 8.dp)
                 )
             }
         }
@@ -193,20 +206,23 @@ fun HomeScreen(navController: NavHostController, balance: MutableState<Double>) 
                 color = Color.Gray
             )
 
+            val usdRate = exchangeRates.value["USD"] ?: 1.0
+            val eurRate = exchangeRates.value["EUR"] ?: 1.0
+
             // Доллары
             Text(
-                text = "3000 USD",
+                text = "3000 USD (${String.format("%.2f", 3000 * usdRate)} ₽)",
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF4CAF50) // Зеленый цвет для долларов
+                color = Color(0xFF4CAF50)
             )
 
             // Евро
             Text(
-                text = "1500 EUR",
+                text = "1500 EUR (${String.format("%.2f", 1500 * eurRate)} ₽)",
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF1E88E5) // Синий цвет для евро
+                color = Color(0xFF1E88E5)
             )
         }
 
@@ -228,19 +244,20 @@ fun HomeScreen(navController: NavHostController, balance: MutableState<Double>) 
         // Новые кнопки
         ButtonWithIcon(
             navController = navController,
-            route = null,
+            route = "savings",
             text = "Накопительный счёт",
             icon = Icons.Default.AttachMoney
         )
 
         ButtonWithIcon(
             navController = navController,
-            route = null,
+            route = "loans",
             text = "Погашение кредитов",
             icon = Icons.Default.MoneyOff
         )
     }
 }
+
 
 
 @Composable
