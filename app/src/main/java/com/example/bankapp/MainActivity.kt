@@ -410,6 +410,8 @@ fun TransactionsScreen(navController: NavHostController, transactions: MutableSt
 
 @Composable
 fun SettingsScreen(navController: NavHostController) {
+    val isNotificationsEnabled = remember { mutableStateOf(true) } // Состояние уведомлений
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -422,10 +424,44 @@ fun SettingsScreen(navController: NavHostController) {
             modifier = Modifier.padding(16.dp)
         )
 
-        ButtonWithIcon(navController, route = null, text = "Уведомления", icon = Icons.Default.Notifications)
-        ButtonWithIcon(navController, route = null, text = "Язык", icon = Icons.Default.Language)
+        // Кнопка переключения уведомлений
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp)
+                .shadow(8.dp, RoundedCornerShape(16.dp)),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF3700B3))
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .padding(16.dp)
+                    .clickable {
+                        // Переключение состояния уведомлений
+                        isNotificationsEnabled.value = !isNotificationsEnabled.value
+                    }
+            ) {
+                Icon(
+                    imageVector = if (isNotificationsEnabled.value) Icons.Default.Notifications else Icons.Default.NotificationsOff,
+                    contentDescription = "Уведомления",
+                    tint = Color.White,
+                    modifier = Modifier.size(32.dp)
+                )
+                Spacer(modifier = Modifier.width(16.dp))
+                Text(
+                    text = if (isNotificationsEnabled.value) "Уведомления включены" else "Уведомления отключены",
+                    style = MaterialTheme.typography.bodyLarge.copy(color = Color.White),
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
+
+        // Кнопка для переключения языка
+        ButtonWithIcon(navController, route = "language", text = "Язык", icon = Icons.Default.Language)
     }
 }
+
 
 @Composable
 fun TransferScreen(
