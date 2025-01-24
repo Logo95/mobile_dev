@@ -54,6 +54,7 @@ class MainActivity : ComponentActivity() {
 fun BankApp() {
     val navController = rememberNavController()
     val balance = remember { mutableStateOf(10000.0) } // Глобальный баланс
+    val savingsBalance = remember { mutableStateOf(20000.0) } // Накопительный счёт
     val transactions = remember { mutableStateOf(mutableListOf<Pair<String, Double>>()) } // Глобальный список транзакций (название партнера + процент)
     val loanState = remember { mutableStateOf(LoanState(remainingLoanAmount = 7000.0, isPaidOff = false)) } // Глобальное состояние кредита
 
@@ -83,7 +84,8 @@ fun BankApp() {
             balance = balance, // Передаем balance
             transactions = transactions, // Передаем transactions
             partners = partners,
-            loanState = loanState // Передаем состояние кредита
+            loanState = loanState, // Передаем состояние кредита
+            savingsBalance = savingsBalance
         )
     }
 }
@@ -140,7 +142,8 @@ fun NavigationHost(
     balance: MutableState<Double>,
     transactions: MutableState<MutableList<Pair<String, Double>>>,
     partners: List<Pair<String, Double>>, // Передаем партнёров
-    loanState: MutableState<LoanState>
+    loanState: MutableState<LoanState>,
+    savingsBalance: MutableState<Double>
 ) {
     NavHost(
         navController = navController,
@@ -152,7 +155,7 @@ fun NavigationHost(
         composable("transactions") { TransactionsScreen(navController, transactions) }
         composable("settings") { SettingsScreen(navController) }
         composable("transfer") { TransferScreen(navController, balance, transactions, partners) }
-        composable("savings") { SavingsScreen(navController) }
+        composable("savings") { SavingsScreen(navController, balance, savingsBalance) }
         composable("loans") { LoanScreen(navController, balance, loanState) }
     }
 }
@@ -557,17 +560,25 @@ fun TransferScreen(
 }
 
 @Composable
-fun SavingsScreen(navController: NavHostController) {
-    val accountNumber = "40817810099910012345" // Пример реального номера счета
-    val savingsBalance = remember { mutableStateOf(250000.0) } // Баланс накопительного счета
-    val interestRate = 5.5 // Процентная ставка
+fun SavingsScreen(navController: NavHostController, balance: MutableState<Double>, savingsBalance: MutableState<Double>) {
+    val withdrawalAmount = remember { mutableStateOf("") }
+    val errorMessage = remember { mutableStateOf("") }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Top
     ) {
-        // Карточка с информацией о накопительном счете
+        Text(
+            text = "Накопительный счёт",
+            style = MaterialTheme.typography.headlineMedium,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(16.dp)
+        )
+
+        // Карточка с деталями накопительного счёта
         Card(
             shape = RoundedCornerShape(24.dp),
             modifier = Modifier
@@ -580,89 +591,101 @@ fun SavingsScreen(navController: NavHostController) {
                 modifier = Modifier.padding(24.dp)
             ) {
                 Text(
-                    text = "Накопительный счёт",
-                    style = MaterialTheme.typography.headlineMedium,
+                    text = "Текущая сумма на счёте",
+                    style = MaterialTheme.typography.bodyLarge,
                     color = Color.White,
                     fontWeight = FontWeight.Bold
                 )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
                 Text(
-                    text = "Номер счёта: $accountNumber",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = Color.White
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = "Баланс: ${String.format("%.2f", savingsBalance.value)} ₽",
-                    style = MaterialTheme.typography.bodyLarge,
+                    text = "${String.format("%.2f", savingsBalance.value)} ₽",
+                    style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = Color.White,
+                    modifier = Modifier.padding(top = 8.dp)
                 )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
                 Text(
-                    text = "Процентная ставка: $interestRate%",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = Color.White
+                    text = "Процент доходности: 4.5% годовых",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.White,
+                    modifier = Modifier.padding(top = 4.dp)
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
-        // Кнопка "Депозит"
-        Button(
-            onClick = { /* Реализация действия депозита */ },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3700B3))
-        ) {
-            Text(
-                text = "Депозит",
-                style = MaterialTheme.typography.bodyLarge,
-                color = Color.White
+        // Поле для ввода суммы снятия
+        OutlinedTextField(
+            value = withdrawalAmount.value,
+            onValueChange = { withdrawalAmount.value = it },
+            label = { Text("Введите сумму для снятия") },
+            modifier = Modifier.fillMaxWidth(),
+            colors = TextFieldDefaults.colors(
+                focusedTextColor = Color.Black,
+                unfocusedTextColor = Color.Gray,
+                focusedLabelColor = Color(0xFF6200EE),
+                unfocusedLabelColor = Color.Gray,
+                focusedIndicatorColor = Color(0xFF6200EE),
+                unfocusedIndicatorColor = Color.Gray
             )
-        }
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
 
         // Кнопка "Снять"
         Button(
-            onClick = { /* Реализация действия снятия */ },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3700B3))
+            onClick = {
+                val amountToWithdraw = withdrawalAmount.value.toDoubleOrNull()
+                if (amountToWithdraw == null || amountToWithdraw <= 0) {
+                    errorMessage.value = "Введите корректную сумму"
+                    return@Button
+                }
+
+                if (amountToWithdraw > savingsBalance.value) {
+                    errorMessage.value = "Недостаточно средств на накопительном счёте"
+                } else {
+                    savingsBalance.value -= amountToWithdraw
+                    balance.value += amountToWithdraw
+                    errorMessage.value = "Снятие успешно! ${String.format("%.2f", amountToWithdraw)} ₽ добавлено на баланс"
+                }
+            },
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6200EE)),
+            modifier = Modifier.fillMaxWidth()
         ) {
             Text(
                 text = "Снять",
-                style = MaterialTheme.typography.bodyLarge,
-                color = Color.White
+                style = MaterialTheme.typography.bodyLarge.copy(color = Color.White),
+                fontWeight = FontWeight.Bold
             )
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Сообщение об ошибке или успехе
+        if (errorMessage.value.isNotEmpty()) {
+            Text(
+                text = errorMessage.value,
+                fontSize = 16.sp,
+                color = if (errorMessage.value.contains("успешно")) Color(0xFF4CAF50) else Color.Red,
+                modifier = Modifier.padding(8.dp)
+            )
+        }
 
         // Кнопка "Назад"
         Button(
             onClick = { navController.popBackStack() },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color.Gray)
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6200EE)),
+            modifier = Modifier.fillMaxWidth()
         ) {
             Text(
                 text = "Назад",
-                style = MaterialTheme.typography.bodyLarge,
-                color = Color.White
+                style = MaterialTheme.typography.bodyLarge.copy(color = Color.White),
+                fontWeight = FontWeight.Bold
             )
         }
     }
 }
+
 
 @Composable
 fun LoanScreen(navController: NavHostController, balance: MutableState<Double>, loanState: MutableState<LoanState>) {
