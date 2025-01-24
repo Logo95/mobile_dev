@@ -55,6 +55,7 @@ fun BankApp() {
     val navController = rememberNavController()
     val balance = remember { mutableStateOf(10000.0) } // Глобальный баланс
     val transactions = remember { mutableStateOf(mutableListOf<Pair<String, Double>>()) } // Глобальный список транзакций (название партнера + процент)
+    val loanState = remember { mutableStateOf(LoanState(remainingLoanAmount = 7000.0, isPaidOff = false)) } // Глобальное состояние кредита
 
     // Список партнеров с процентами кэшбэка
     val partners = listOf(
@@ -81,7 +82,8 @@ fun BankApp() {
             modifier = Modifier.padding(innerPadding),
             balance = balance, // Передаем balance
             transactions = transactions, // Передаем transactions
-            partners = partners // Передаем список partners
+            partners = partners,
+            loanState = loanState // Передаем состояние кредита
         )
     }
 }
@@ -118,6 +120,11 @@ fun BottomNavigationBar(navController: NavHostController) {
     }
 }
 
+data class LoanState(
+    var remainingLoanAmount: Double,
+    var isPaidOff: Boolean
+)
+
 @Composable
 fun currentRoute(navController: NavHostController): String? {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -132,7 +139,8 @@ fun NavigationHost(
     modifier: Modifier = Modifier,
     balance: MutableState<Double>,
     transactions: MutableState<MutableList<Pair<String, Double>>>,
-    partners: List<Pair<String, Double>> // Передаем партнёров
+    partners: List<Pair<String, Double>>, // Передаем партнёров
+    loanState: MutableState<LoanState>
 ) {
     NavHost(
         navController = navController,
@@ -145,6 +153,7 @@ fun NavigationHost(
         composable("settings") { SettingsScreen(navController) }
         composable("transfer") { TransferScreen(navController, balance, transactions, partners) }
         composable("savings") { SavingsScreen(navController) }
+        composable("loans") { LoanScreen(navController, balance, loanState) }
     }
 }
 
@@ -252,7 +261,7 @@ fun HomeScreen(navController: NavHostController, balance: MutableState<Double>) 
 
         ButtonWithIcon(
             navController = navController,
-            route = null,
+            route = "loans",
             text = "Погашение кредитов",
             icon = Icons.Default.MoneyOff
         )
@@ -650,6 +659,148 @@ fun SavingsScreen(navController: NavHostController) {
                 text = "Назад",
                 style = MaterialTheme.typography.bodyLarge,
                 color = Color.White
+            )
+        }
+    }
+}
+
+@Composable
+fun LoanScreen(navController: NavHostController, balance: MutableState<Double>, loanState: MutableState<LoanState>) {
+    val repaymentAmount = remember { mutableStateOf("") }
+    val errorMessage = remember { mutableStateOf("") }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Top
+    ) {
+        Text(
+            text = "Погашение кредита",
+            style = MaterialTheme.typography.headlineMedium,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(16.dp)
+        )
+
+        // Карточка с деталями кредита
+        Card(
+            shape = RoundedCornerShape(24.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 16.dp)
+                .shadow(8.dp, RoundedCornerShape(24.dp)),
+            colors = CardDefaults.cardColors(
+                containerColor = if (loanState.value.isPaidOff) Color(0xFF4CAF50) else Color(0xFFB71C1C) // Зелёный, если кредит погашен
+            )
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp)
+            ) {
+                Text(
+                    text = if (loanState.value.isPaidOff) "Кредит погашен!" else "Текущая сумма долга",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
+                )
+                if (!loanState.value.isPaidOff) {
+                    Text(
+                        text = "${String.format("%.2f", loanState.value.remainingLoanAmount)} ₽",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                    Text(
+                        text = "Кредит: Личный займ (до 01.12.2025)",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+            }
+        }
+
+        // Поле для ввода суммы погашения
+        OutlinedTextField(
+            value = repaymentAmount.value,
+            onValueChange = { repaymentAmount.value = it },
+            label = { Text("Введите сумму для погашения") },
+            modifier = Modifier.fillMaxWidth(),
+            colors = TextFieldDefaults.colors(
+                focusedTextColor = Color.Black,
+                unfocusedTextColor = Color.Gray,
+                focusedLabelColor = Color(0xFFB71C1C),
+                unfocusedLabelColor = Color.Gray,
+                focusedIndicatorColor = Color(0xFFB71C1C),
+                unfocusedIndicatorColor = Color.Gray
+            )
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Кнопка "Погасить кредит"
+        Button(
+            onClick = {
+                val amountToPay = repaymentAmount.value.toDoubleOrNull()
+                if (amountToPay == null || amountToPay <= 0) {
+                    errorMessage.value = "Введите корректную сумму"
+                    return@Button
+                }
+
+                when {
+                    amountToPay > balance.value -> {
+                        errorMessage.value = "Недостаточно средств для погашения"
+                    }
+                    amountToPay >= loanState.value.remainingLoanAmount -> {
+                        balance.value -= loanState.value.remainingLoanAmount
+                        loanState.value = loanState.value.copy(
+                            remainingLoanAmount = 0.0,
+                            isPaidOff = true
+                        )
+                        errorMessage.value = "Кредит полностью погашен!"
+                    }
+                    else -> {
+                        loanState.value = loanState.value.copy(
+                            remainingLoanAmount = loanState.value.remainingLoanAmount - amountToPay
+                        )
+                        balance.value -= amountToPay
+                        errorMessage.value = "Платеж успешен! Осталось погасить: ${String.format("%.2f", loanState.value.remainingLoanAmount)} ₽"
+                    }
+                }
+            },
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB71C1C)),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(
+                text = "Погасить кредит",
+                style = MaterialTheme.typography.bodyLarge.copy(color = Color.White),
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Сообщение об ошибке или успехе
+        if (errorMessage.value.isNotEmpty()) {
+            Text(
+                text = errorMessage.value,
+                fontSize = 16.sp,
+                color = if (errorMessage.value.contains("успешен") || errorMessage.value.contains("погашен")) Color(0xFF4CAF50) else Color.Red,
+                modifier = Modifier.padding(8.dp)
+            )
+        }
+
+        // Кнопка "Назад"
+        Button(
+            onClick = { navController.popBackStack() },
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6200EE)),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(
+                text = "Назад",
+                style = MaterialTheme.typography.bodyLarge.copy(color = Color.White),
+                fontWeight = FontWeight.Bold
             )
         }
     }
